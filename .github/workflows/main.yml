@@ -15,14 +15,21 @@ jobs:
           python --version
       - name: Clone code
         uses: actions/checkout@v4
+
       - name: Create venv
         run: python3 -m venv .venv
-      - name: Install lint tool
-        run: .venv/bin/pip install flake8 black isort
+
+      - name: Install dependencies
+        run: |
+         .venv/bin/pip install -r requirements.txt
+         .venv/bin/pip install -r requirements-dev.txt
+  
       - name: Check code format
         run: .venv/bin/black --check app/ tests/
+
       - name: Check import oders
         run: .venv/bin/isort --check-only --diff app/ tests/
+
       - name: Run flake8
         run: .venv/bin/flake8 app/ tests/ --max-line-length=88
   test:
@@ -32,15 +39,26 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Create venv
-        run: python3 -m venv .venv
-      - name: Install dependencies
+
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: ${{runner.os}}-venv-${{hashFiles('**/requirements*.txt')}}
+          restore-keys: |
+            ${{runner.os}}-venv-
+
+      - name: Setup Environment
         run: |
+          test -d .venv || python -m venv .venv
           .venv/bin/pip install -r requirements.txt
           .venv/bin/pip install -r requirements-dev.txt
           .venv/bin/pip install pytest
+
       - name: Run tests
         run: .venv/bin/pytest tests/ -v --tb=short
+
   build:
     name: Build stage
     runs-on: ["self-hosted","Linux","X64"]
@@ -48,17 +66,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Create venv
-        run: python3 -m venv .venv
-
-      - name: Install dependencies
-        run: .venv/bin/pip install -r requirement.txt
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: ${{runner.os}}-venv-${{hashFiles('**/requirements*.txt')}}
+          restore-keys: |
+            ${{runner.os}}-venv-
       - name: Verify app starts
         run: |
-          .venv/bin/pip install uvicorn
           timeout 5 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
           curl -f http://localhost:8000/health || exit 1
-          # curl -f = fail với exit code khác 0 nếu HTTP error
-          # Đây là smoke test đơn giản: app có khởi động được không?
 
