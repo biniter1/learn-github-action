@@ -9,6 +9,10 @@ jobs:
     name: Lint stage
     runs-on: ["self-hosted","Linux","X64"]
     steps:
+      - name: check python version
+        run: |
+          which python
+          python --version
       - name: Setup environment
         uses: actions/setup-python@v4
         with:
