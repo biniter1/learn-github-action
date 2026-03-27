@@ -23,7 +23,13 @@ jobs:
         run: |
          .venv/bin/pip install -r requirements.txt
          .venv/bin/pip install -r requirements-dev.txt
-  
+      - name: Cache venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: ${{runner.os}}-venv-${{hashFiles('**/requirements*.txt')}}
+          restore-keys: |
+            ${{runner.os}}-venv-
       - name: Check code format
         run: .venv/bin/black --check app/ tests/
 
@@ -71,7 +77,8 @@ jobs:
             ${{runner.os}}-venv-
       - name: Verify app starts
         run: |
-          timeout 5 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          timeout 5 
+          .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
           curl -f http://localhost:8000/health || exit 1
 
