@@ -15,6 +15,10 @@ jobs:
           python --version
       - name: Clone code
         uses: actions/checkout@v4
+      - name: Create venv
+        run: python3 -m venv .venv
+      - name: Activate venv
+        run: source .venv/bin/activate
       - name: Install lint tool
         run: pip install flake8 black isort
       - name: Check code format
@@ -30,6 +34,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Create venv
+        run: python3 -m venv .venv
+      - name: Activate venv
+        run: source .venv/bin/activate
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
@@ -43,6 +51,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Create venv
+        run: python3 -m venv .venv
+      - name: Activate venv
+        run: source .venv/bin/activate
       - name: Install dependencies
         run: pip install -r requirement.txt
       - name: Verify app starts
