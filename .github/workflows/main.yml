@@ -17,16 +17,14 @@ jobs:
         uses: actions/checkout@v4
       - name: Create venv
         run: python3 -m venv .venv
-      - name: Activate venv
-        run: source .venv/bin/activate
       - name: Install lint tool
-        run: pip install flake8 black isort
+        run: .venv/bin/pip install flake8 black isort
       - name: Check code format
-        run: black --check app/ tests/
+        run: .venv/bin/black --check app/ tests/
       - name: Check import oders
-        run: isort --check-only --diff app/ tests/
+        run: .venv/bin/isort --check-only --diff app/ tests/
       - name: Run flake8
-        run: flake8 app/ tests/ --max-line-length=88
+        run: .venv/bin/flake8 app/ tests/ --max-line-length=88
   test:
     name: Test stage
     runs-on: ["self-hosted","Linux","X64"]
@@ -36,14 +34,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Create venv
         run: python3 -m venv .venv
-      - name: Activate venv
-        run: source .venv/bin/activate
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+          .venv/bin/pip install -r requirements.txt
+          .venv/bin/pip install -r requirements-dev.txt
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: .venv/bin/pytest tests/ -v --tb=short
   build:
     name: Build stage
     runs-on: ["self-hosted","Linux","X64"]
@@ -53,13 +49,12 @@ jobs:
         uses: actions/checkout@v4
       - name: Create venv
         run: python3 -m venv .venv
-      - name: Activate venv
-        run: source .venv/bin/activate
+
       - name: Install dependencies
-        run: pip install -r requirement.txt
+        run: .venv/bin/pip install -r requirement.txt
       - name: Verify app starts
         run: |
-          pip install uvicorn
+          .venv/bin/pip install uvicorn
           timeout 5 uvicorn app.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
           curl -f http://localhost:8000/health || exit 1
