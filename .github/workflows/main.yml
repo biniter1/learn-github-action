@@ -13,19 +13,120 @@ jobs:
       working_directory: app
     secrets: 
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
-  notify:
+  deploy-dev:
+    name: Deploy to dev environment
     needs: [run-ci]
     runs-on: ["self-hosted","Linux","X64"]
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: https://dev.myapp.com
     steps:
-      - name: Show output return from resauable file
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to dev server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_HOST: ${{ secrets.SECRET_HOST }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
         run: |
-         echo "Coverage: ${{ needs.run-ci.outputs.coverage-pct }}"
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+          echo "Deploying to dev server"
+  deploy-stag:
+    name: Deploy to stag environment
+    needs: [run-ci]
+    runs-on: ["self-hosted","Linux","X64"]
+    if: github.ref == 'refs/head/staging'
+    environment:
+      name: staging
+      url: https://stag.myapp.com
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to stag server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_HOST: ${{ secrets.SECRET_HOST }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          echo "Deploying to stag server"
+  deploy-prod:
+    name: Deploy to production environment server
+    needs: [deploy-stag]
+    runs-on: ["self-hosted","Linux","X64"]
+    if: github.ref == 'refs/head/main'
+    environment:
+      name: production
+      url: https://myapp.com
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: deploy to production server
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_HOST: ${{ secrets.SECRET_HOST }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          name: coverage
-          path: coverage.xml
-          retention-days: 1
+          host: ${{ secrets.PROD_SECRET_HOST }}
+          username: ${{secrets.PROD_USERNAME}}
+          key: ${{ secrets.PROD_PRIVATE_KEY }}
+          script: |
+              docker pull ghcr.io/${{ github.repository }}:latest
+
+              docker stop fastapi-app || true
+              docker rm fastapi-app || true 
+
+              docker run -d \
+              -- name fastapi-app \
+              --restart unless-stopped \
+              -p 8000:8000
+              -e DATABASE_URL = "${{ secrets.DATABASE_URL }}"" \
+              -e SECRET_HOST = "${{ secrets.PROD_SECRET_HOST }}"" \
+              -e SSH_KEY = "${{ secrets.PROD_PRIVATE_KEY }}"" \
+              ghcr.io/${{ github.repository }}:latest
+            
+              sleep 5
+              docker ps | grep fastapi-app
+              curl -f http://localhost:8000/heath | exit 1
+      - name: Health check & Rollback
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          script: |
+            # Lấy image tag trước đó (cách đơn giản nhất)
+            PREVIOUS_IMAGE=$(docker inspect fastapi-app-backup \
+              --format='{{.Config.Image}}' 2>/dev/null || echo "")
+
+            # Health check app vừa deploy
+            sleep 10
+            if ! curl -f http://localhost:8000/health; then
+              echo "❌ Health check FAILED — Rolling back..."
+
+              docker stop fastapi-app
+              docker rm fastapi-app
+
+              # Khởi động lại container backup nếu có
+              if [ -n "$PREVIOUS_IMAGE" ]; then
+                docker run -d --name fastapi-app \
+                  -p 8000:8000 \
+                  -e DATABASE_URL="${DATABASE_URL}" \
+                  $PREVIOUS_IMAGE
+                echo "✅ Rolled back to $PREVIOUS_IMAGE"
+              fi
+
+              exit 1   
+            fi
+
+            echo "✅ Deploy successful!"
+  
+
+        
+    
 
 
 
