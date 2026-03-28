@@ -1,0 +1,72 @@
+name: Resuable Python CI
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        type: string
+        description: "Verion of environment"
+        required: true
+        default: "3.11"
+      working_directory:
+        type: string
+        description: "Where we work"
+        required: true
+        default: app
+    secrets:
+      SECRET_KEY:
+        required: true
+    outputs:
+      coverage-pct:
+        description: "Test coverage percentage"
+        value: ${{ jobs.test.outputs.pct }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ["self-hosted","Linux","X64"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Create venv
+        run: python3 -m venv .venv
+      
+      - name: Install dependencies
+        run: |
+          .venv/bin/pip install -r requirements.txt
+          .venv/bin/pip install -r requirements-dev.txt
+      - name: Cache venv
+        uses: action/cache@v4
+        with:
+          path: .venv
+          key: ${{runner.os}}-pip-$${{inputs.python_version}}-${{hashFiles('**/requirements*.txt')}}
+          restore-keys: |
+            ${{runner.os}}-venv-
+      - run: .venv/bin/black --check ${{ inputs.working_directory }}
+      - run: .venv/bin/flake8 ${{ inputs.working_directory }} --max-line-length=88 
+  test:
+    name: Test
+    runs-on: ["self-hosted","Linux","X64"]
+    needs: [lint]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Create venv
+        run: python3 -m venv .venv
+      - name: Cache venv
+        uses: action/cache@v4
+        with:
+          path: .venv
+          key: ${{runner.os}}-pip-$${{inputs.python_version}}-venv-${{hashFiles('**/requirements*.txt')}}
+          restore-key: ${{runner.os}}-venv-
+      - name: Install dependencies
+        run: |
+            .venv/bin/pip install -r requirements.txt
+            .venv/bin/pip install -r requirements-dev.txt
+      - name: Extract coverage
+        id: coverage          
+        run: |
+          PCT=$(python -c "import xml.etree.ElementTree as ET; t=ET.parse('coverage.xml').getroot(); print(round(float(t.attrib['line-rate'])*100))")
+          echo "pct=$PCT" >> $GITHUB_OUTPUT
+
