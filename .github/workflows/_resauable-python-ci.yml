@@ -59,7 +59,7 @@ jobs:
       - name: Create venv
         run: python3 -m venv .venv
       - name: Cache venv
-        uses: action/cache@v4
+        uses: actions/cache@v4
         with:
           path: .venv
           key: ${{runner.os}}-pip-${{inputs.python_version}}-venv-${{hashFiles('**/requirements*.txt')}}
