@@ -20,6 +20,13 @@ jobs:
       - name: Show output return from resauable file
         run: |
          echo "Coverage: ${{ needs.run-ci.outputs.coverage-pct }}"
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          retention-days: 1
+
 
 
       
