@@ -1,5 +1,6 @@
 from app.routes.items import get_item_name
 
+
 def read_item(item_id: int) -> str:
     return get_item_name(item_id)
 
