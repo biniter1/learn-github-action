@@ -19,7 +19,7 @@ on:
     outputs:
       coverage-pct:
         description: "Test coverage percentage"
-        value: ${{ jobs.test.outputs.pct }}
+        value: ${{ jobs.test.outputs.coverage-pct }}
 
 jobs:
   lint:
@@ -32,23 +32,27 @@ jobs:
       - name: Create venv
         run: python3 -m venv .venv
       
-      - name: Install dependencies
-        run: |
-          .venv/bin/pip install -r requirements.txt
-          .venv/bin/pip install -r requirements-dev.txt
       - name: Cache venv
-        uses: action/cache@v4
+        uses: actions/cache@v4
         with:
           path: .venv
           key: ${{runner.os}}-pip-$${{inputs.python_version}}-${{hashFiles('**/requirements*.txt')}}
           restore-keys: |
             ${{runner.os}}-venv-
+      - name: Install dependencies
+        run: |
+          .venv/bin/pip install -r requirements.txt
+          .venv/bin/pip install -r requirements-dev.txt
       - run: .venv/bin/black --check ${{ inputs.working_directory }}
       - run: .venv/bin/flake8 ${{ inputs.working_directory }} --max-line-length=88 
   test:
     name: Test
     runs-on: ["self-hosted","Linux","X64"]
     needs: [lint]
+    outputs:
+      coverage-pct:
+        value:| 
+         ${{ steps.coverage.outputs.pct}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -58,12 +62,15 @@ jobs:
         uses: action/cache@v4
         with:
           path: .venv
-          key: ${{runner.os}}-pip-$${{inputs.python_version}}-venv-${{hashFiles('**/requirements*.txt')}}
-          restore-key: ${{runner.os}}-venv-
+          key: ${{runner.os}}-pip-${{inputs.python_version}}-venv-${{hashFiles('**/requirements*.txt')}}
+          restore-keys: ${{runner.os}}-venv-
       - name: Install dependencies
         run: |
             .venv/bin/pip install -r requirements.txt
             .venv/bin/pip install -r requirements-dev.txt
+      - name: Run tests with coverage
+        run: |
+          .venv/bin/pytest --cov=${{ inputs.working_directory }} --cov-report=xml
       - name: Extract coverage
         id: coverage          
         run: |
